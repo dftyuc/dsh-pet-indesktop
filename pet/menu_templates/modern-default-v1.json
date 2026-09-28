@@ -70,6 +70,7 @@
     {"type": "action", "id": "timed_reminder", "visible": true, "section": "tools"},
     {"type": "action", "id": "app_usage_toggle", "visible": true, "section": "tools"},
     {"type": "action", "id": "hotkeys_toggle", "visible": true, "section": "tools"},
+    {"type": "action", "id": "rules_editor", "visible": true, "section": "tools"},
     {"type": "action", "id": "voice_chime_now", "visible": false, "section": "tools"},
     {"type": "action", "id": "voice_chime_toggle", "visible": false, "section": "tools"},
     {"type": "action", "id": "festival_now", "visible": false, "section": "tools"},

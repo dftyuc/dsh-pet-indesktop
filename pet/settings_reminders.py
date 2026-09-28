@@ -15,6 +15,8 @@ import、域装配一行与保存链一行。
 """
 from __future__ import annotations
 
+from PySide6.QtWidgets import QPushButton
+
 from .settings_widgets import SettingRow, ToggleSwitch
 
 
@@ -31,6 +33,19 @@ def build_reminder_controls(dialog) -> None:
             control = ToggleSwitch(host)
             control.setChecked(bool(host.config.get(key, default)))
             setattr(host, attr, control)
+    if getattr(host, "rules_editor_btn", None) is None:
+        button = QPushButton("编辑规则…", host)
+        button.clicked.connect(lambda _checked=False, dlg=host: _open_rules_editor(dlg))
+        host.rules_editor_btn = button
+
+
+def _open_rules_editor(dialog) -> None:
+    """打开规则图形编辑器；窗口在的话（设置对话框的父就是桌宠窗口）保存后立刻生效。"""
+    from . import rules_editor
+
+    parent = dialog.parent()
+    window = parent if hasattr(parent, "cfg") else None
+    rules_editor.open_rules_editor(dialog.config, window=window, parent=dialog)
 
 
 def build_toggle_rows(dialog) -> list[SettingRow]:
@@ -64,6 +79,13 @@ def build_toggle_rows(dialog) -> list[SettingRow]:
             "右键菜单「回收内存」的开关：默认跳过你正在用的程序，"
             "免得收完还要重新读盘（更细的阈值在 config.json 的 mem_min_size_mb）。",
             dialog.mem_skip_foreground_check,
+        ),
+        SettingRow(
+            "rules_editor",
+            "编辑规则…",
+            "打开图形编辑器：定时提醒（每天 / 每周 / 每隔）、用久了提醒（应用 + 时长 + 台词）、"
+            "全局快捷键（按键 + 动作 + 台词）三张表，改完保存即刻生效，不用再手改 config.json。",
+            dialog.rules_editor_btn,
         ),
     ]
 

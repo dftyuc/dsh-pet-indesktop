@@ -12,6 +12,7 @@ ROWS = (
     ("app_usage_on", "app_usage_on_check"),
     ("hotkeys_on", "hotkeys_on_check"),
     ("mem_skip_foreground", "mem_skip_foreground_check"),
+    ("rules_editor", "rules_editor_btn"),
 )
 
 

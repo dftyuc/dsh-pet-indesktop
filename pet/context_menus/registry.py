@@ -76,6 +76,13 @@ ACTION_LABELS = {
     "timed_reminder": "定时提醒",
     "app_usage_toggle": "用久了提醒",
     "hotkeys_toggle": "全局快捷键",
+    "rules_editor": "编辑规则…",
+    # 报时/节日四项的菜单文案是动态的（启用↔关闭），编排器里给中性名，
+    # 免得菜单编排列表回落到英文 id（2026-09-29 用户反馈）。
+    "voice_chime_now": "立即报时",
+    "voice_chime_toggle": "语音报时开关",
+    "festival_now": "今日节日",
+    "festival_toggle": "节日提醒开关",
     "modern_settings": "桌宠设置", "quit": "退出",
 }
 
@@ -106,6 +113,7 @@ ACTION_ICONS = {
     "timed_reminder": "todo",
     "app_usage_toggle": "automation",
     "hotkeys_toggle": "interaction",
+    "rules_editor": "settings",
     "modern_settings": "settings", "quit": "quit",
     "voice_chime_now": "chat", "voice_chime_toggle": "chat",
     "festival_now": "todo", "festival_toggle": "todo",
@@ -302,6 +310,17 @@ def _build_hotkeys(menu, pet):
     return action
 
 
+def _build_rules_editor(menu, pet):
+    """把定时提醒 / 用久了 / 快捷键三张规则表打开成图形编辑器。"""
+    from .. import rules_editor
+
+    return add_action(
+        menu, "编辑规则…", "settings",
+        lambda: rules_editor.open_rules_editor(pet.cfg, window=pet, parent=pet),
+        close_on_trigger=True,
+    )
+
+
 def _build_voice_chime_now(menu, pet):
     return add_action(menu, "立即报时", "chat", pet.on_voice_chime_now, close_on_trigger=True)
 
@@ -449,6 +468,7 @@ class MenuActionRegistry:
             "timed_reminder": MenuActionSpec(_build_timed_reminder),
             "app_usage_toggle": MenuActionSpec(_build_app_usage),
             "hotkeys_toggle": MenuActionSpec(_build_hotkeys),
+            "rules_editor": MenuActionSpec(_build_rules_editor),
             "voice_chime_now": MenuActionSpec(
                 _build_voice_chime_now, _callback_available("on_voice_chime_now")
             ),

@@ -227,3 +227,62 @@ $env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force
 对照上一轮 `9 failed, 3071 passed, 9 skipped`（231.67s）：**9 个失败全部转绿**，
 且整体快了约 23 秒（窗口不再上真实桌面，少了一堆 WM/合成器交互）；
 其中一条用例从 failed 变成 skipped（它本来就声明"offscreen 下不适用"）。
+
+---
+
+# 第三轮（同日稍后）：规则图形编辑器 + 菜单编排的中文标签
+
+用户要求两件事：① 把"规则只能改 config.json"这个已知限制解掉（图形编辑器）；
+② 菜单编排列表里 `voice_chime_now` 这类**英文 id** 要变成中文（默认中文）。
+
+## 一、规则图形编辑器（`pet/rules_editor.py`）
+
+一个对话框，三个页内标签，对应三张规则表：
+
+| 标签页 | 配置键 | 列 |
+|---|---|---|
+| 定时提醒 | `timed_rules` | 启用 / 类型（每天·每周·每隔）/ 时间 / 星期 / 间隔 / 带汇总 / 台词 |
+| 用久了提醒 | `app_usage_rules` | 启用 / 进程名 / 分钟 / 重复 / 台词 |
+| 全局快捷键 | `hotkeys` | 启用 / 按键 / 动作（说一句·看天气·看余额）/ 台词 |
+
+- 每页有「添加一行 / 删除选中 / 恢复本页默认」；台词一栏**每行一句**；
+- **非法行不许保存**：写错的行会被指出来（"定时提醒第 2 行写得不完整"），
+  例如时间写成 `25:99`、每隔没写间隔、快捷键没带 Ctrl 或用了 `Ctrl+C` 这类保留键；
+- 保存即写回 `config.json` 并**立刻生效**：快捷键重新注册、用久了换规则、定时提醒保持节拍；
+- 入口有两个：右键菜单「编辑规则…」，以及设置页「自动化与联动 → 提醒与快捷键 → 编辑规则…」。
+
+**分层**：文本 ↔ 规则的转换与校验全在纯逻辑模块 `pet/rules_text.py`（不 import Qt），
+所以"哪一行非法"这种判定能离线单测；对话框只负责摆控件与收集单元格。
+
+## 二、菜单编排里的英文 id（默认中文）
+
+**根因**：`MenuActionRegistry.label()` 是 `ACTION_LABELS.get(action_id, action_id)`——
+**没登记标签的动作会原样显示英文 id**；而 `voice_chime_now` / `voice_chime_toggle` /
+`festival_now` / `festival_toggle` 这四个只登记了图标、没登记标签（它们的菜单文案是
+动态的"启用↔关闭"，写编排器名字时被漏掉了）。
+
+**修法**：补四个中性中文名（立即报时 / 语音报时开关 / 今日节日 / 节日提醒开关），
+并新增护栏用例 `tests/test_menu_action_labels.py`：**每个注册动作都必须有中文标签、
+且显示名不许等于 id 本身**——以后再加动作漏登记，测试直接红。
+
+## 三、本轮验证（仍未跑 pytest）
+
+```text
+ruff check pet/ tests/                → All checks passed!
+py_compile（7 个改动/新增文件）        → exit 0
+work/probe_rules_editor.py（11 项）    → 全部通过
+```
+
+探针覆盖：缺标签动作 = 空集、四个新中文名、三张表的往返映射、非法行被拒、
+以及**对话框无头冒烟**（能建起来、三个标签页、三张表行数与 config 一致）。
+
+## 四、请用户复跑
+
+```powershell
+cd <仓库路径>
+$env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force $env:TMP | Out-Null
+.\.venv\Scripts\python -m pytest -q
+```
+
+新增用例集中在 `tests/test_rules_text.py`、`tests/test_menu_action_labels.py`，
+以及 `tests/test_menu_layout.py` / `tests/test_desktop_pet_features.py`（多了一个「编辑规则…」入口）。
