@@ -217,3 +217,13 @@ $env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force
 
 预期：上一轮那 6 个失败转绿；并且**跑测试时桌面不再闪烁**（窗口都在 offscreen 里）。
 若仍有与"真实平台"相关的用例想验，用 `$env:QT_QPA_PLATFORM = "windows"` 单独跑那一个文件。
+
+## 五、用户回执（同日）：全绿
+
+```text
+3079 passed, 10 skipped, 14 warnings in 208.51s (0:03:28)
+```
+
+对照上一轮 `9 failed, 3071 passed, 9 skipped`（231.67s）：**9 个失败全部转绿**，
+且整体快了约 23 秒（窗口不再上真实桌面，少了一堆 WM/合成器交互）；
+其中一条用例从 failed 变成 skipped（它本来就声明"offscreen 下不适用"）。
