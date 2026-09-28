@@ -58,7 +58,8 @@ def weekday_label(days) -> str:
 
 def label_to_days(text) -> list[int]:
     """``"周一,周三"`` → ``[0, 2]``；认不出的词直接忽略。"""
-    raw = str(text or "").replace("，", ",").replace("、", ",").replace(" ", "")
+    # 顿号、逗号、空格都当分隔符：用户很自然会写"周一 周三"或"周一、周三"
+    raw = str(text or "").replace("，", ",").replace("、", ",").replace(" ", ",")
     out: list[int] = []
     for token in raw.split(","):
         name = token.strip()
@@ -113,7 +114,8 @@ def timed_rule_to_row(rule: dict) -> list[str]:
         _kind_to_text(str(rule.get("when") or "daily")),
         timed_reminder.normalize_hhmm(rule.get("time"), ""),
         weekday_label(rule.get("days")),
-        "" if str(rule.get("when")) == "interval" else str(int(rule.get("every") or 60)),
+        # 间隔一栏只对"每隔"有意义；每天/每周留空，免得用户以为要填
+        str(int(rule.get("every") or 60)) if str(rule.get("when")) == "interval" else "",
         flag_to_text(rule.get("summary", False)),
         lines_to_text(rule.get("lines")),
     ]

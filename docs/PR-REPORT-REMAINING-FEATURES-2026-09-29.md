@@ -286,3 +286,34 @@ $env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force
 
 新增用例集中在 `tests/test_rules_text.py`、`tests/test_menu_action_labels.py`，
 以及 `tests/test_menu_layout.py` / `tests/test_desktop_pet_features.py`（多了一个「编辑规则…」入口）。
+
+---
+
+# 第四轮（同日）：编辑器三条失败 + 一处 UX 改进
+
+用户回执：`3 failed, 3086 passed, 10 skipped`（207.62s）。三条都出在上一轮的编辑器/设置组上：
+
+| # | 失败用例 | 根因 | 修法 |
+|---|---|---|---|
+| 1 | `test_rules_text.py::test_weekday_label_round_trip` | `label_to_days()` 把空格**删掉**而不是当分隔符，于是 `"周一,周三 周六"` 被当成一个词（`周三周六`）→ 只剩 `[0]` | 空格与顿号、逗号一样当分隔符（`.replace(" ", ",")`） |
+| 2 | `test_rules_text.py::test_timed_rule_round_trip_interval_and_weekly` | `timed_rule_to_row()` 里的条件写反了：**对 `interval` 反而把"间隔"一栏留空**，回读时"每隔但没写间隔"被判非法 → 返回 None | 改成"只在 `interval` 时填 `every`，每天/每周留空" |
+| 3 | `test_settings_reminders.py::test_build_controls_defaults_to_on` | 上一轮往 `ROWS` 里加了「编辑规则…」按钮行，而那条用例把每一行都当开关断言 `isChecked()` | 拆成 `SWITCH_ROWS`（4 个开关）与 `BUTTON_ROWS`（1 个按钮），默认值断言只覆盖开关，按钮断言文案 |
+
+**顺带改进（用户说"改进"，这条算人家自己找的）**：编辑器里「添加一行」以前给**全空行**，
+得逐格填满才能保存，第一次用很容易撞上"写得不完整"。现在按页预填一份**合法起点**：
+
+| 页 | 新行预填 |
+|---|---|
+| 定时提醒 | 是 / 每天 / 09:00 / — / — / 否 / （台词留空，回读时自动补内置台词） |
+| 用久了提醒 | 是 / （进程名留空）/ 60 / 0 / — |
+| 全局快捷键 | 是 / Ctrl+Alt+G / **看天气** / —（选"看天气"是因为它不需要台词，新行一加就是合法的） |
+
+## 本轮验证（仍未跑 pytest）
+
+```text
+ruff check pet/ tests/            → All checks passed!
+work/probe_round2_fixes.py（11 项） → 全部通过
+```
+
+探针覆盖：空格分隔星期、interval 往返（`every=15` 能回来）、每天/每周的间隔栏留空、
+weekly 往返、以及编辑器三页"添加一行"后的新行**立刻合法**（含快捷键预填 `Ctrl+Alt+G`）。

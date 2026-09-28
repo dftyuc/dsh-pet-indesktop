@@ -45,9 +45,12 @@ class _RuleTable(QWidget):
     """一张规则表：表头 + 单元格 + 「添加一行 / 删除选中 / 恢复本页默认」。"""
 
     def __init__(self, columns: tuple[str, ...], rows, *, hint: str = "",
-                 defaults=None, parent=None) -> None:
+                 defaults=None, blank_row=None, parent=None) -> None:
         super().__init__(parent)
         self._defaults = defaults
+        # 「添加一行」预填的默认值：给一份合法的起点，用户只改关心的格子
+        # （以前给全空行，得逐格填满才能保存，容易卡在"写得不完整"）
+        self._blank_row = list(blank_row) if blank_row else None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
@@ -82,7 +85,10 @@ class _RuleTable(QWidget):
     def add_row(self, cells=None) -> None:
         row = self.table.rowCount()
         self.table.insertRow(row)
-        values = list(cells or ["" for _ in range(self.table.columnCount())])
+        if cells is None:
+            values = list(self._blank_row or ["" for _ in range(self.table.columnCount())])
+        else:
+            values = list(cells)
         for column in range(self.table.columnCount()):
             text = str(values[column]) if column < len(values) else ""
             self.table.setItem(row, column, QTableWidgetItem(text))
@@ -128,6 +134,7 @@ class RulesEditorDialog(QDialog):
                  "间隔写分钟数（仅每隔用）；台词一栏每行一句；「带汇总」是先把今日汇总说在前头。",
             defaults=lambda: [rules_text.timed_rule_to_row(rule)
                               for rule in timed_reminder.default_timed_rules()],
+            blank_row=["是", "每天", "09:00", "", "", "否", ""],
             parent=self,
         )
         self.tabs.addTab(self.timed_table, "定时提醒")
@@ -139,6 +146,7 @@ class RulesEditorDialog(QDialog):
                  "「重复」是之后每隔多少分钟再说一次（0 = 只说一次）；台词一栏每行一句。",
             defaults=lambda: [rules_text.usage_rule_to_row(exe, rule)
                               for exe, rule in app_usage.DEFAULT_USAGE_RULES.items()],
+            blank_row=["是", "", "60", "0", ""],
             parent=self,
         )
         self.tabs.addTab(self.usage_table, "用久了提醒")
@@ -150,6 +158,9 @@ class RulesEditorDialog(QDialog):
                  "动作写 说一句 / 看天气 / 看余额；「说一句」必须在台词里写内容。",
             defaults=lambda: [rules_text.hotkey_rule_to_row(rule)
                               for rule in hotkey_rules.default_hotkeys()],
+            # 预填成"看天气"：它不需要台词，所以新行一加进来就是合法的；
+            # 想让它说一句，把动作改成"说一句"再写台词即可。
+            blank_row=["是", "Ctrl+Alt+G", "看天气", ""],
             parent=self,
         )
         self.tabs.addTab(self.hotkey_table, "全局快捷键")

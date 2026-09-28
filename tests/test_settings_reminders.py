@@ -7,13 +7,15 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from pet import settings_reminders
 
-ROWS = (
+SWITCH_ROWS = (
     ("timed_on", "timed_on_check"),
     ("app_usage_on", "app_usage_on_check"),
     ("hotkeys_on", "hotkeys_on_check"),
     ("mem_skip_foreground", "mem_skip_foreground_check"),
-    ("rules_editor", "rules_editor_btn"),
 )
+# 「编辑规则…」那一行是按钮不是开关，所以不参与"默认都开着"的断言
+BUTTON_ROWS = (("rules_editor", "rules_editor_btn"),)
+ROWS = SWITCH_ROWS + BUTTON_ROWS
 
 
 class FakeConfig:
@@ -60,8 +62,9 @@ def test_build_controls_reads_config_and_is_idempotent(_app):
 def test_build_controls_defaults_to_on(_app):
     dialog = FakeDialog(FakeConfig({}))
     settings_reminders.build_reminder_controls(dialog)
-    for _key, attr in ROWS:
+    for _key, attr in SWITCH_ROWS:
         assert getattr(dialog, attr).isChecked() is True
+    assert dialog.rules_editor_btn.text() == "编辑规则…"
 
 
 def test_rows_expose_setting_row_object_names(_app):
