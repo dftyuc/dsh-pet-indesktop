@@ -159,6 +159,12 @@ permission rather than treating errno 1 as a product failure.
    （源码、测试、文档报告，以及上游本就有、检出时缺了的 `assets/`、`docs/`）；
    要交给用户看的产物放 `outputs/`。跑完测试或提交后**要清掉自己留下的临时目录**，
    并在交接里列出"我放了什么、在哪、能不能删"。
+   （`.venv/` 是跑测试用的开发环境，属于例外：保留，但已在 `.gitignore` 里忽略。）
+8. **定期复盘，把坑变成规矩（2026-09-29 起）**：节奏、清单与"可直接粘进自动化"的提示词见
+   [`docs/RETRO-CADENCE.md`](docs/RETRO-CADENCE.md)；机械项跑
+   `python scripts/retro_check.py`（仓库根不许有临时产物 / 文案红线 / 菜单中文标签 /
+   文档登记 / 行数预算），红了按对应规则修。新踩的坑要先写成
+   `docs/AI-LESSONS-*.md` 条目，能机器拦住的再补一条护栏测试或检查项。
 
 ## Agent skills
 

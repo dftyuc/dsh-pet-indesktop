@@ -1,0 +1,70 @@
+# 定期复盘：节奏、清单与自动化提示词
+
+> 目的：让"踩过的坑"稳定地变成"写下来的规则"，而不是靠记性。
+> 配套：机器项跑 [`scripts/retro_check.py`](../scripts/retro_check.py)；
+> 规则本体是 [`../AGENTS.md`](../AGENTS.md) 的「协作经验」，
+> 案例库是 [`AI-LESSONS-2026-09-29.md`](AI-LESSONS-2026-09-29.md)。
+
+## 一、节奏（建议）
+
+| 时机 | 做什么 | 谁做 |
+|---|---|---|
+| **每次发版前** | 跑一遍 `python scripts/retro_check.py`；红了先修再发 | agent / 维护者 |
+| **每月一次**（或每周五收工前） | 上面那步 + "人的那半"：翻这一个月的 PR 报告与测试报告，把**重复出现**的坑提炼成规则 | 维护者 + agent |
+| **踩了新坑的当次** | 当场补 `AI-LESSONS` 条目；如果它是"以后不该再犯"，同批写进 `AGENTS.md` | 谁踩谁补 |
+
+## 二、机器那半：`scripts/retro_check.py`
+
+它只查**已经变成规矩**的机械项，不发明新要求：
+
+1. 生成文件落点（`AGENTS.md` 第 7 条）：仓库根不许有 `.tmp*` / `.pytest_cache` / `.venv*`；
+2. 文案红线：`pet/ tests/ docs/` 与 `README.md` 不许出现外部品牌词；
+3. 默认中文：每个注册菜单动作都必须有中文标签（不许回落到英文 id）；
+4. 文档登记：`docs/PR-REPORT-*.md` 都要在 `docs/INDEX.md` 登记；
+5. 行数预算：`pet/window.py` 与 `pet/modern_settings_dialog.py` 不超过预算。
+
+```bash
+python scripts/retro_check.py          # 打印全部结果
+python scripts/retro_check.py --quiet   # 只在有红项时输出（自动化里用）
+```
+
+退出码：`0` 全过、`1` 有红项——自动化可以直接据此决定要不要打扰你。
+
+## 三、人那半（机器查不了，但最值钱）
+
+1. 翻这段时间的 `docs/PR-REPORT-*.md` 与测试报告，找**同一个根因出现第二次**的地方；
+2. 对每个这样的根因写一条 `AI-LESSONS` 条目，四段固定：
+   **现象 / 根因 / 现在的做法 / 触发词**（触发词是为了以后一眼对上）；
+3. 如果它属于"以后不该再犯"，把它提炼成 `AGENTS.md`「协作经验」里的一条**硬规矩**，
+   并尽量配一个护栏测试或 `retro_check` 检查项——**能被机器拦住的规矩才算规矩**；
+4. 复盘完把"这次新加了哪几条规矩"写进当次 PR 报告（或直接开一个 docs 提交）。
+
+## 四、直接粘到 App 自动化里的提示词
+
+### 4.1 每月例行（推荐：每月 1 日 10:00）
+
+```text
+对本仓库做一次「定期复盘」：
+1) 先跑 `python scripts/retro_check.py`，把红项按 AGENTS.md 的对应规则修掉（修完再跑一次确认）；
+2) 读最近一个月新增/修改的 docs/PR-REPORT-*.md 与我给你的测试报告（如果这次没有附报告，
+   就只按仓库里的报告做），找出**同一根因出现两次以上**的问题；
+3) 每个这样的问题写一条 docs/AI-LESSONS-<日期>.md 条目，格式：现象 / 根因 / 现在的做法 / 触发词；
+4) 属于"以后不该再犯"的，提炼成 AGENTS.md「协作经验」里的硬规矩，并尽量补一个
+   tests/ 下的护栏用例或 scripts/retro_check.py 的检查项；
+5) 最后给一份简短结论：这轮修了什么、新增了哪几条规矩、哪些还需要我决定。
+不要跑 pytest（测试由我在终端跑）；产物按规则只放 work/ 与 outputs/。
+```
+
+### 4.2 发版前（推荐：手动触发）
+
+```text
+发版前体检：跑 `python scripts/retro_check.py`；再确认 docs/INDEX.md 里本批所有新文档都登记过、
+新配置键的快照与白名单都同步（tests/test_config_schema.py）、菜单契约断言都跟上了
+（tests/test_menu_layout.py / test_desktop_pet_features.py）。有红的先修，然后把结论写进当批 PR 报告。
+```
+
+## 五、这套东西怎么自我改进
+
+本文件本身也属于规则：如果复盘时发现"某条规矩总是靠人记、机器拦不住"，
+就把它加进 `scripts/retro_check.py` 的 `CHECKS`；如果发现某条检查项已经过时（比如预算口径变了），
+就改检查项或在 `AGENTS.md` 里改规则——**规则与检查项要一起走**。
