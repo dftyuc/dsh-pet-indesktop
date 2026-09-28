@@ -72,6 +72,10 @@ ACTION_LABELS = {
     "proactive_screen": "主动识屏", "todo_panel": "待办提醒",
     "quiet_mode": "免打扰", "daily_summary": "今日汇总",
     "weather": "查看天气", "weather_cities": "天气城市",
+    "memory_trim": "回收内存",
+    "timed_reminder": "定时提醒",
+    "app_usage_toggle": "用久了提醒",
+    "hotkeys_toggle": "全局快捷键",
     "modern_settings": "桌宠设置", "quit": "退出",
 }
 
@@ -98,6 +102,10 @@ ACTION_ICONS = {
     "proactive_screen": "screen", "todo_panel": "todo",
     "quiet_mode": "automation", "daily_summary": "balance",
     "weather": "weather", "weather_cities": "weather",
+    "memory_trim": "clear",
+    "timed_reminder": "todo",
+    "app_usage_toggle": "automation",
+    "hotkeys_toggle": "interaction",
     "modern_settings": "settings", "quit": "quit",
     "voice_chime_now": "chat", "voice_chime_toggle": "chat",
     "festival_now": "todo", "festival_toggle": "todo",
@@ -250,6 +258,50 @@ def _build_weather_cities(menu, pet):
     return submenu
 
 
+def _build_memory_trim(menu, pet):
+    """回收内存：收拾**别的进程**已经用不着的工作集（不动自己与前台）。"""
+    from .. import memory_trim_service
+
+    return add_action(
+        menu, "回收内存", "clear",
+        lambda: memory_trim_service.run_now(pet),
+        close_on_trigger=True,
+    )
+
+
+def _build_timed_reminder(menu, pet):
+    """定时提醒开关（规则在 config.json 的 timed_rules，形如每天/每周/每隔 N 分钟）。"""
+    from .. import timed_reminder_service as service
+
+    action = add_action(menu, "定时提醒", "todo")
+    action.setCheckable(True)
+    action.setChecked(service.enabled(pet))
+    action.toggled.connect(lambda _checked, pet=pet: service.toggle(pet))
+    return action
+
+
+def _build_app_usage(menu, pet):
+    """用久了提醒开关（规则在 config.json 的 app_usage_rules）。"""
+    from .. import app_usage_service as service
+
+    action = add_action(menu, "用久了提醒", "automation")
+    action.setCheckable(True)
+    action.setChecked(service.enabled(pet))
+    action.toggled.connect(lambda _checked, pet=pet: service.toggle(pet))
+    return action
+
+
+def _build_hotkeys(menu, pet):
+    """全局快捷键开关（键与动作在 config.json 的 hotkeys）。"""
+    from .. import hotkey_service as service
+
+    action = add_action(menu, "全局快捷键", "interaction")
+    action.setCheckable(True)
+    action.setChecked(service.enabled(pet))
+    action.toggled.connect(lambda _checked, pet=pet: service.toggle(pet))
+    return action
+
+
 def _build_voice_chime_now(menu, pet):
     return add_action(menu, "立即报时", "chat", pet.on_voice_chime_now, close_on_trigger=True)
 
@@ -391,6 +443,12 @@ class MenuActionRegistry:
             # 天气不需要 API Key：菜单里始终可用（城市没配时点一下会引导设置）。
             "weather": MenuActionSpec(_build_weather),
             "weather_cities": MenuActionSpec(_build_weather_cities),
+            # 回收内存不依赖任何可选服务：菜单里始终可用
+            "memory_trim": MenuActionSpec(_build_memory_trim),
+            # 定时提醒同理（规则在 config.json 的 timed_rules）
+            "timed_reminder": MenuActionSpec(_build_timed_reminder),
+            "app_usage_toggle": MenuActionSpec(_build_app_usage),
+            "hotkeys_toggle": MenuActionSpec(_build_hotkeys),
             "voice_chime_now": MenuActionSpec(
                 _build_voice_chime_now, _callback_available("on_voice_chime_now")
             ),

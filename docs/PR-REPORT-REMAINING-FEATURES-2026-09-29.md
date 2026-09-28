@@ -1,0 +1,164 @@
+# PR 报告：补齐四项（回收内存 / 定时提醒 / 用久了提醒 / 全局快捷键）2026-09-29
+
+> **基线**：`ff82327`（AI 协作复盘那批）
+> **分支**：`main`（本地改造分支，未推送）　**日期**：2026-09-29
+> **范围**：实现 13 个文件（9 个新增模块）+ 测试 9 个文件（5 新增 / 4 更新契约）+ docs 2
+> **关联**：功能补齐方案（会话交付物）里剩下的 P3~P6；
+> 本批**未跑 pytest**——按 [`AI-LESSONS-2026-09-29.md`](AI-LESSONS-2026-09-29.md) 的
+> 第 6 条硬约定，测试执行权归用户（下方第六节给了建议命令）。
+
+## 一、核心特性
+
+把方案里剩下的四项一次性补齐。四项都遵循同一条架构：**纯逻辑模块（不 import Qt）+ 服务壳
+（线程/节拍 + 气泡）+ 菜单/设置接线**，因此判定逻辑都能离线单测。
+
+| # | 功能 | 用户看到什么 | 纯逻辑模块 | 服务壳 |
+|---|---|---|---|---|
+| 1 | **回收内存** | 右键菜单「回收内存」→ 冒一句「收拾好啦：22 个程序腾出 2.6 GB」 | `pet/memory_trim.py` | `pet/memory_trim_service.py` |
+| 2 | **定时提醒** | 菜单「定时提醒」开关；规则到点说一句（可先报今日汇总） | `pet/timed_reminder.py` | `pet/timed_reminder_service.py` |
+| 3 | **用久了提醒** | 菜单「用久了提醒」开关；某应用连续用满设定时长说一句 | `pet/app_usage.py` | `pet/app_usage_service.py` |
+| 4 | **全局快捷键** | 菜单「全局快捷键」开关；在任何程序里按 Ctrl+Alt+1/2/3 都有反应 | `pet/hotkey_rules.py` | `pet/hotkey_service.py` |
+
+**红线 / 不变量**：
+
+1. 四项都不新增第三方依赖（回收内存用 ctypes、快捷键用 Win32 + Qt 原生过滤器）；
+2. 四项的规则/键位/台词都住在 `config.json`，设置页只给开关——不让 `modern_settings_dialog.py`
+   继续臃肿；
+3. 气泡统一走 `pet/window_alerts.show_alert()`，因此**免打扰期间一律被压住并攒着**；
+4. 非 Windows 平台：回收内存与快捷键整体退化（设置与菜单照旧可见），其余两项与平台无关。
+
+## 二、修改文件说明
+
+### 新增实现
+
+| 文件 | 行数 | 改动意图 |
+|---|---|---|
+| `pet/memory_trim.py` | +276 | 温和回收工作集：`select_targets()`（太小/名单/自己三跳）、`summarize()` 文案、`_Win32Backend`（**argtypes 全部声明**，防 64 位句柄截断）。OS 出口可注入，判定离线可测 |
+| `pet/memory_trim_service.py` | +131 | 后台线程收一轮 → 队列 → 主线程 300ms tick 冒泡；默认跳过前台进程 |
+| `pet/timed_reminder.py` | +173 | 规则清洗（每天/每周/每隔 N 分钟）+ `due_rule_ids()`：`"YYYY-MM-DD HH:MM"` 槽位去重、interval 首拍只盖戳、错过的窗口不补报 |
+| `pet/timed_reminder_service.py` | +130 | 20 秒节拍；`summary: true` 的规则先接今日汇总；菜单开关 + 立即生效 |
+| `pet/app_usage.py` | +149 | `UsageTracker` 状态机：换应用重置、`FG_IDLE_FREEZE=600` 秒静默冻结、首次 + 每 `repeat` 分钟重复、`{app}/{minutes}/{hm}` 变量 |
+| `pet/app_usage_service.py` | +131 | 5 秒节拍；复用 `vision.foreground_window_info()` / `get_system_idle_seconds()`，不重写 Win32 |
+| `pet/hotkey_rules.py` | +135 | 键名解析（**必须带 Ctrl**、拒绝 Ctrl+C/V/X/Z 等保留键、只认字母数字/F1~F24/白名单特殊键）、规则清洗、默认三条 |
+| `pet/hotkey_service.py` | +229 | `RegisterHotKey(None, id, mods\|MOD_NOREPEAT, vk)` + `QAbstractNativeEventFilter` 接 `WM_HOTKEY`；注册失败**如实回报**键序；动作分发（说一句 / 看天气 / 看余额） |
+| `pet/settings_reminders.py` | +76 | 设置页「提醒与快捷键」组的 4 个开关（细则键仍在 config.json） |
+
+### 接线改动
+
+| 文件 | 增删 | 改动意图 |
+|---|---|---|
+| `pet/config.py` | +39 / −0 | 新增 8 个键：`mem_skip_foreground`、`mem_min_size_mb`、`timed_on`、`timed_rules`、`app_usage_on`、`app_usage_rules`、`hotkeys_on`、`hotkeys` + 各自清洗 |
+| `pet/context_menus/registry.py` | +58 / −0 | 新增 4 个动作：`memory_trim`、`timed_reminder`、`app_usage_toggle`、`hotkeys_toggle`（后三个是可勾开关）+ 标签/图标 |
+| `pet/menu_templates/modern-default-v1.json` | +4 / −0 | 新版模板加 4 个 action 节点 |
+| `pet/menu_templates/modern.json` | +1 / −1 | 旧版菜单 `tools` 分组补 4 个入口 |
+| `pet/modern_settings_dialog.py` | +4 / −0 | 只多 import、「自动化与联动」域一行、保存链一行与注释 |
+| `pet/app.py` | +55 / −0 | `_service_windows()` 助手 + `_sync_timed_reminder/_sync_app_usage/_sync_hotkeys`，并在启动、设置保存（含外部配置变更）三处同步 |
+
+### 测试
+
+| 文件 | 增删 | 覆盖 |
+|---|---|---|
+| `tests/test_memory_trim.py`（新增） | +129 / −0 | 三跳口径、`human_mb` 格式化、`clean_min_mb` 夹取、统计聚合（trimmed/denied/failed/freed）、backend 抛错兜底、文案三分支 |
+| `tests/test_timed_reminder.py`（新增） | +107 / −0 | `HH:MM` 归一（含 `930`/`9:5`）、星期清洗、规则清洗与上限、同分钟只触发一次、错过窗口不补报、interval 首拍只盖戳 |
+| `tests/test_app_usage.py`（新增） | +93 / −0 | 换应用重置、静默冻结、首次到点、重复间隔、规则关闭/空台词跳过、变量替换 |
+| `tests/test_hotkey_rules.py`（新增） | +89 / −0 | 键名解析 15 组参数化（含保留键与"必须带 Ctrl"）、显示名归一、规则清洗去重与动作白名单、内置表有效 |
+| `tests/test_settings_reminders.py`（新增） | +91 / −0 | 4 个开关初值来自 config、二次装配不重建、行 `objectName`、写回 4 键 |
+| `tests/test_menu_layout.py` | +23 / −0 | 根节点 id / `registered` / 解析结果 / QMenu 渲染序列四处补 4 个新动作 |
+| `tests/test_desktop_pet_features.py` | +7 / −0 | 根菜单文本序列补 4 个新入口 |
+| `tests/test_config_schema.py` | +11 / −2 | 白名单快照补 8 键；文件头数字同步实测（默认值 143 / 白名单 138） |
+| `tests/test_architecture.py` | +4 / −1 | `MODERN_SETTINGS_DIALOG_PY_LINE_BUDGET` 2392 → 2396，理由写在常量上方 |
+
+### 未改动（明确说明）
+
+- `pet/window.py`：一行未改（菜单经注册表直接调服务，气泡走 `window_alerts`）。
+- 未引入 `psutil` 之外的新依赖；回收内存与快捷键都走 ctypes / Qt 自带能力。
+
+## 三、实现要点
+
+1. **四项同一形状**：纯逻辑（可离线测）+ 服务壳（线程/节拍 + 气泡）+ 菜单/设置接线。
+   这也是本仓库既有服务的形状（`voice_chime_service` / `todo_reminder` / `quiet_service`）。
+2. **免打扰天然兼容**：四个新气泡都用 `alert_type`（`memory_trim` / `timed_reminder` /
+   `app_usage` / `hotkey`）走提醒队列；免打扰期间被压住并计入"攒了 N 条"。
+3. **节拍成本分级**：定时提醒 20 秒（够用）+ 用久了提醒 5 秒（精度需要）+
+   回收内存/天气/免打扰按需 300ms 且**队列空即停表**，没有常驻空转。
+4. **快捷键的保守策略**：必须带 Ctrl、拒绝 `Ctrl+C/V/X/Z/S/F/W/T/N/R` 等保留键、
+   只认白名单键；`RegisterHotKey` 失败（键被占用）会记录键序并在开关时冒泡告知，
+   不静默失败。
+5. **config.json 是规则的家**：设置页只给开关，细则（规则表/键位/台词）写在配置里，
+   避免 `modern_settings_dialog.py` 继续膨胀（本批只 +4 行）。
+
+## 四、性能分析
+
+**说明**：本批**没有跑 pytest**（约定见文首），因此这里给的是**静态可推算的成本**与
+`ruff`/`py_compile` 的实测结果，不含运行时采样。等用户跑完全量后可在报告里补实测。
+
+| 指标 | 数值 | 归属 |
+|---|---|---|
+| 新增常驻节拍 | 定时提醒 20s 一拍、用久了 5s 一拍（仅开启时） | 新增 |
+| 按需节拍 | 回收内存 300ms，只在发起后跑到结果回来 | 新增 |
+| 快捷键 | 零轮询（纯消息驱动，只在按键时被唤醒） | 新增 |
+| 回收内存的系统调用 | 一次 EnumProcesses + 每进程 1~3 次 OpenProcess/GetProcessMemoryInfo + 1 次 EmptyWorkingSet | 新增（仅手动触发） |
+| 新依赖 | 0 | — |
+
+**结论**：① 稳态开销 = 定时提醒 + 用久了两个 QTimer（各 1 个，关闭即停）；
+② 新增路径成本集中在手动触发的回收内存与按键响应；③ 不新增第三方依赖；
+④ 内存：四项各挂一个小 dict/对象，规则表规模有上限（40/12/20 条）。
+
+## 五、实机运行记录
+
+**本轮人家只跑了静态检查**（按 2026-09-29 定下的硬约定：pytest 归用户）：
+
+```text
+.venv\Scripts\python -m ruff check pet/ tests/     → All checks passed!
+.venv\Scripts\python -m py_compile <17 个文件>      → exit 0
+```
+
+**必须由用户在真机确认的四件事**（人家做不到，也不猜）：
+
+1. **回收内存真能腾出内存**：点菜单「回收内存」，看气泡数字与任务管理器里的可用内存；
+2. **快捷键真能按下**：Ctrl+Alt+1/2/3 在别的程序里也响应；把某个组合先被别的软件占用，
+   确认开关会提示"有几个键被别的程序占着"；
+3. **定时提醒真能到点**：把 `timed_rules` 里某条改成 1 分钟后的 `HH:MM` 等它响；
+   interval 型首拍不炸（不该一开就说话）；
+4. **用久了提醒真会算**：把某应用的 `minutes` 改成 1，实际用满看是否只提示一次；
+   挂机 10 分钟确认不提示（静默冻结）。
+
+## 六、测试与验证（交给用户）
+
+建议按这个顺序跑（先聚焦、后全量）：
+
+```powershell
+cd <仓库路径>   # 例如本机：…\Documents\…\dsh-pet-indesktop
+$env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force $env:TMP | Out-Null
+
+# 1) 本批新增的纯逻辑用例
+.\.venv\Scripts\python -m pytest -q tests/test_memory_trim.py tests/test_timed_reminder.py `
+    tests/test_app_usage.py tests/test_hotkey_rules.py tests/test_settings_reminders.py
+
+# 2) 契约（菜单 / 配置 / 架构 / 设置页）
+.\.venv\Scripts\python -m pytest -q tests/test_menu_layout.py tests/test_config_schema.py `
+    tests/test_architecture.py tests/test_settings_interaction_tabs.py
+
+# 3) 全量
+.\.venv\Scripts\python -m pytest -q
+```
+
+预期：前两组全绿（新增用例约 60 条）；全量在修掉真实桌面 9 个失败之后应当也是绿
+（上一轮基线：`3027 passed, 9 skipped`）。
+
+## 七、已知限制与后续
+
+1. **规则没有图形编辑器**：`timed_rules` / `app_usage_rules` / `hotkeys` 目前要在
+   `config.json` 里改（设置页只给开关）。做编辑器是下一步的 UI 活（参考
+   `click_talk_dialog.py` 那种小对话框）。
+2. **回收内存不自动定时**：刻意只做手动（自动回收会让游戏/IDE 重新读盘）。
+3. **快捷键非 Windows 退化**：macOS/Linux 上开关可用但不注册（设置页说明写在行文案里）。
+4. **用久了提醒只认前台 exe 名**：同一 exe 的多个实例算一个（按进程名聚合）。
+
+## 八、风险与回滚
+
+- **影响面**：新增 4 个菜单项、8 个配置键、2 个常驻 QTimer（仅在开关打开时运行）、
+  1 个全局快捷键注册表项（仅 Windows）。
+- **配置迁移**：8 个键均为纯新增键，`version` 不需升；老 `config.json` 直接读默认值。
+- **回滚**：`git revert` 本提交即可；无落盘数据（快捷键注册在进程退出时由系统回收，
+  但**关闭开关会显式注销**）。

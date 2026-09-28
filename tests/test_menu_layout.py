@@ -33,6 +33,10 @@ def test_modern_default_v1_has_compact_root_and_safety_actions():
         "daily_summary",
         "weather",
         "weather_cities",
+        "memory_trim",
+        "timed_reminder",
+        "app_usage_toggle",
+        "hotkeys_toggle",
         "voice_chime_now",
         "voice_chime_toggle",
         "festival_now",
@@ -345,6 +349,10 @@ def test_missing_user_layout_resolves_versioned_default():
         "daily_summary",
         "weather",
         "weather_cities",
+        "memory_trim",
+        "timed_reminder",
+        "app_usage_toggle",
+        "hotkeys_toggle",
         "voice_chime_now",
         "voice_chime_toggle",
         "festival_now",
@@ -380,6 +388,10 @@ def test_missing_user_layout_resolves_versioned_default():
         "daily_summary",
         "weather",
         "weather_cities",
+        "memory_trim",
+        "timed_reminder",
+        "app_usage_toggle",
+        "hotkeys_toggle",
         "modern_settings",
         "quit",
     ]
@@ -555,6 +567,13 @@ def test_default_layout_populates_real_qmenu_hierarchy(monkeypatch):
     # 天气两项（2026-09-29 新增）：同样在「待办提醒」之后、「桌宠设置」之前
     expected_root.insert(-2, "查看天气")
     expected_root.insert(-2, "天气城市")
+    # 回收内存（2026-09-29 新增）：同样在「待办提醒」之后、「桌宠设置」之前
+    expected_root.insert(-2, "回收内存")
+    # 定时提醒（2026-09-29 新增）
+    expected_root.insert(-2, "定时提醒")
+    # 用久了提醒 / 全局快捷键（2026-09-29 新增）
+    expected_root.insert(-2, "用久了提醒")
+    expected_root.insert(-2, "全局快捷键")
     # 报时/节日四项默认不在菜单上（模板 visible: false，2026-09-19 起）
     assert root == expected_root
     rendered = ["|" if action.isSeparator() else action.text() for action in menu.actions()]
@@ -575,6 +594,10 @@ def test_default_layout_populates_real_qmenu_hierarchy(monkeypatch):
     expected_rendered.insert(-3, "今日汇总")
     expected_rendered.insert(-3, "查看天气")
     expected_rendered.insert(-3, "天气城市")
+    expected_rendered.insert(-3, "回收内存")
+    expected_rendered.insert(-3, "定时提醒")
+    expected_rendered.insert(-3, "用久了提醒")
+    expected_rendered.insert(-3, "全局快捷键")
     assert rendered == expected_rendered
     pet_controls = next(action.menu() for action in menu.actions() if action.text() == "桌宠控制")
     assert [action.text() for action in pet_controls.actions() if not action.isSeparator()] == [

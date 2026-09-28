@@ -16,6 +16,10 @@ from typing import Any
 from . import catalog
 from . import daily_summary as daily_summary_mod
 from . import quiet_mode
+from . import memory_trim
+from . import app_usage
+from . import hotkey_rules
+from . import timed_reminder
 from . import weather_source
 from .report_gates import (
     LEGACY_PERCENT_GATES,
@@ -726,6 +730,17 @@ class Config:
             "weather_enabled": True,
             "weather_city": "",
             "weather_city_list": [],
+            # 回收内存（pet/memory_trim_service.py 读这两项）
+            "mem_skip_foreground": True,
+            "mem_min_size_mb": memory_trim.MEM_TRIM_MIN_MB,
+            # 定时提醒（pet/timed_reminder_service.py 读这两项；规则在 timed_rules）
+            "timed_on": True,
+            "timed_rules": timed_reminder.default_timed_rules(),
+            # 用久了提醒 / 全局快捷键（pet/app_usage_service.py、pet/hotkey_service.py 读）
+            "app_usage_on": True,
+            "app_usage_rules": {exe: dict(rule) for exe, rule in app_usage.DEFAULT_USAGE_RULES.items()},
+            "hotkeys_on": True,
+            "hotkeys": hotkey_rules.default_hotkeys(),
             "self_talk_texts": list(DEFAULT_SELF_TALK_TEXTS),
             "self_talk_image_dir": "assets/big_blue_fat_fish",
             "self_talk_bubble_style": DEFAULT_SELF_TALK_BUBBLE_STYLE,
@@ -998,6 +1013,14 @@ class Config:
             "weather_enabled",
             "weather_city",
             "weather_city_list",
+            "mem_skip_foreground",
+            "mem_min_size_mb",
+            "timed_on",
+            "timed_rules",
+            "app_usage_on",
+            "app_usage_rules",
+            "hotkeys_on",
+            "hotkeys",
             "self_talk_bubble_style",
             "mouse_through",
             "cursor_hidden_passthrough",
@@ -1316,6 +1339,22 @@ class Config:
         self.data["weather_city_list"] = weather_source.clean_city_list(
             self.data.get("weather_city_list"), self.data["weather_city"]
         )
+        self.data["mem_skip_foreground"] = _bool_or_default(
+            self.data.get("mem_skip_foreground"), True
+        )
+        self.data["mem_min_size_mb"] = memory_trim.clean_min_mb(
+            self.data.get("mem_min_size_mb"), memory_trim.MEM_TRIM_MIN_MB
+        )
+        self.data["timed_on"] = _bool_or_default(self.data.get("timed_on"), True)
+        self.data["timed_rules"] = timed_reminder.clean_timed_rules(
+            self.data.get("timed_rules")
+        )
+        self.data["app_usage_on"] = _bool_or_default(self.data.get("app_usage_on"), True)
+        self.data["app_usage_rules"] = app_usage.clean_rules(
+            self.data.get("app_usage_rules")
+        )
+        self.data["hotkeys_on"] = _bool_or_default(self.data.get("hotkeys_on"), True)
+        self.data["hotkeys"] = hotkey_rules.clean_hotkeys(self.data.get("hotkeys"))
         self.data["self_talk_enabled"] = bool(self.data.get("self_talk_enabled", False))
         self.data["self_talk_speak_enabled"] = _bool_or_default(self.data.get("self_talk_speak_enabled"), True)
         self.data["self_talk_voice_precache_enabled"] = _bool_or_default(self.data.get("self_talk_voice_precache_enabled"), False)

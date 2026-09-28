@@ -211,7 +211,10 @@ WINDOW_PY_LINE_BUDGET = 4671
 # 2026-09-29 再上调到 2392（+3）：天气设置入口——控件与行在 pet/settings_weather.py，
 # 「互动」域新增第三个页内标签「天气」由 settings_interaction 承载；本文件只多
 # 模块 import（+1）与保存链 apply_to_config(self)（+2 含注释）。实测 2392。
-MODERN_SETTINGS_DIALOG_PY_LINE_BUDGET = 2392
+# 2026-09-29 再上调到 2396（+4）：提醒与快捷键设置组——控件与 4 行都在
+# pet/settings_reminders.py（新控件组优先拆出），本文件只多 import、域装配一行、
+# 保存链一行与注释。实测 2396。
+MODERN_SETTINGS_DIALOG_PY_LINE_BUDGET = 2396
 
 
 def _read(name: str) -> str:
