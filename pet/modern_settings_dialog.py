@@ -167,6 +167,7 @@ from . import settings_interaction
 from . import settings_music
 from . import settings_pet_controls
 from . import settings_quiet
+from . import settings_weather
 from .report_gates import REPORT_GATE_KEYS, REPORT_GATE_LABELS, gate_for_event
 
 
@@ -2252,6 +2253,8 @@ class ModernSettingsDialog(QDialog):
         self.config.set("todo_reminder_lead_minutes", int(self.todo_reminder_lead_spin.value()))
         # 免打扰 / 今日汇总 4 键（控件与行在 settings_quiet）
         settings_quiet.apply_to_config(self)
+        # 天气 3 键（控件与行在 settings_weather）
+        settings_weather.apply_to_config(self)
         # 语音报时设置页写回（仅写 voice_chime_* 11 键）
         if self.voice_chime_page is not None:
             self.voice_chime_page.apply_to_config()

@@ -71,6 +71,7 @@ ACTION_LABELS = {
     "quark_download": "夸克网盘下载", "agent_link": "Agent 联动",
     "proactive_screen": "主动识屏", "todo_panel": "待办提醒",
     "quiet_mode": "免打扰", "daily_summary": "今日汇总",
+    "weather": "查看天气", "weather_cities": "天气城市",
     "modern_settings": "桌宠设置", "quit": "退出",
 }
 
@@ -96,6 +97,7 @@ ACTION_ICONS = {
     "quark_download": "download", "agent_link": "automation",
     "proactive_screen": "screen", "todo_panel": "todo",
     "quiet_mode": "automation", "daily_summary": "balance",
+    "weather": "weather", "weather_cities": "weather",
     "modern_settings": "settings", "quit": "quit",
     "voice_chime_now": "chat", "voice_chime_toggle": "chat",
     "festival_now": "todo", "festival_toggle": "todo",
@@ -199,6 +201,53 @@ def _build_daily_summary(menu, pet):
         lambda: quiet_service.show_daily_summary(pet),
         close_on_trigger=True,
     )
+
+
+def _build_weather(menu, pet):
+    """查看天气（当前城市）；没配城市时先弹一句设置引导。"""
+    from .. import weather_service
+
+    return add_action(
+        menu, "查看天气", "weather",
+        lambda: weather_service.show_weather(pet),
+        close_on_trigger=True,
+    )
+
+
+def _build_weather_cities(menu, pet):
+    """天气城市：当前城市打勾、点一下即切换；另有搜索/手填/删除三条。"""
+    from .. import weather_service
+
+    def switch(city: str) -> None:
+        weather_service.set_city(pet, city)
+        weather_service.request(pet, city)
+
+    submenu = add_submenu(menu, "天气城市", "weather")
+    current = weather_service.current_city(pet)
+    for city in weather_service.cities(pet):
+        action = add_action(
+            submenu, city, "weather", lambda city=city: switch(city),
+            close_on_trigger=True,
+        )
+        action.setCheckable(True)
+        action.setChecked(city == current)
+    submenu.addSeparator()
+    add_action(
+        submenu, "添加城市（联网搜索）…", "search",
+        lambda: weather_service.prompt_search_city(pet),
+        close_on_trigger=True,
+    )
+    add_action(
+        submenu, "手动输入城市…", "add",
+        lambda: weather_service.prompt_manual_city(pet),
+        close_on_trigger=True,
+    )
+    add_action(
+        submenu, "删掉一个城市…", "remove",
+        lambda: weather_service.prompt_remove_city(pet),
+        close_on_trigger=True,
+    )
+    return submenu
 
 
 def _build_voice_chime_now(menu, pet):
@@ -339,6 +388,9 @@ class MenuActionRegistry:
             # 免打扰与今日汇总不依赖任何可选服务：菜单里始终可用。
             "quiet_mode": MenuActionSpec(_build_quiet_mode),
             "daily_summary": MenuActionSpec(_build_daily_summary),
+            # 天气不需要 API Key：菜单里始终可用（城市没配时点一下会引导设置）。
+            "weather": MenuActionSpec(_build_weather),
+            "weather_cities": MenuActionSpec(_build_weather_cities),
             "voice_chime_now": MenuActionSpec(
                 _build_voice_chime_now, _callback_available("on_voice_chime_now")
             ),

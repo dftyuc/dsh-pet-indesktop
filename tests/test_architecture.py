@@ -208,7 +208,10 @@ WINDOW_PY_LINE_BUDGET = 4671
 # 「自动化与联动」域加一行 ("免打扰与汇总", build_quiet_rows(self))（+1）、
 # 保存链 apply_to_config(self)（+2 含注释）、模块 import（+1）。实测 2389，
 # 按文件约定只随实测校准，不为达标压行。
-MODERN_SETTINGS_DIALOG_PY_LINE_BUDGET = 2389
+# 2026-09-29 再上调到 2392（+3）：天气设置入口——控件与行在 pet/settings_weather.py，
+# 「互动」域新增第三个页内标签「天气」由 settings_interaction 承载；本文件只多
+# 模块 import（+1）与保存链 apply_to_config(self)（+2 含注释）。实测 2392。
+MODERN_SETTINGS_DIALOG_PY_LINE_BUDGET = 2392
 
 
 def _read(name: str) -> str:

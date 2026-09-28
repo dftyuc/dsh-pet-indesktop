@@ -16,6 +16,7 @@ from typing import Any
 from . import catalog
 from . import daily_summary as daily_summary_mod
 from . import quiet_mode
+from . import weather_source
 from .report_gates import (
     LEGACY_PERCENT_GATES,
     LEGACY_SWITCH_GATES,
@@ -721,6 +722,10 @@ class Config:
             "quiet_also_on_fullscreen": True,
             "summary_min_seconds": daily_summary_mod.DEFAULT_SUMMARY_MIN_SECONDS,
             "summary_max_apps": daily_summary_mod.DEFAULT_SUMMARY_MAX_APPS,
+            # 天气（pet/weather_service.py 读这三项）
+            "weather_enabled": True,
+            "weather_city": "",
+            "weather_city_list": [],
             "self_talk_texts": list(DEFAULT_SELF_TALK_TEXTS),
             "self_talk_image_dir": "assets/big_blue_fat_fish",
             "self_talk_bubble_style": DEFAULT_SELF_TALK_BUBBLE_STYLE,
@@ -990,6 +995,9 @@ class Config:
             "quiet_also_on_fullscreen",
             "summary_min_seconds",
             "summary_max_apps",
+            "weather_enabled",
+            "weather_city",
+            "weather_city_list",
             "self_talk_bubble_style",
             "mouse_through",
             "cursor_hidden_passthrough",
@@ -1303,6 +1311,11 @@ class Config:
             self.data.get("summary_max_apps"),
             float(daily_summary_mod.DEFAULT_SUMMARY_MAX_APPS), 1.0, 5.0,
         ))
+        self.data["weather_enabled"] = _bool_or_default(self.data.get("weather_enabled"), True)
+        self.data["weather_city"] = weather_source.clean_city(self.data.get("weather_city"))
+        self.data["weather_city_list"] = weather_source.clean_city_list(
+            self.data.get("weather_city_list"), self.data["weather_city"]
+        )
         self.data["self_talk_enabled"] = bool(self.data.get("self_talk_enabled", False))
         self.data["self_talk_speak_enabled"] = _bool_or_default(self.data.get("self_talk_speak_enabled"), True)
         self.data["self_talk_voice_precache_enabled"] = _bool_or_default(self.data.get("self_talk_voice_precache_enabled"), False)

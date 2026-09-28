@@ -912,6 +912,9 @@ def test_modern_context_menu_has_compact_semantic_groups(monkeypatch):
     # 2026-09-29 新增，渲染在「待办提醒」之后、「桌宠设置」之前。
     expected_labels.append("免打扰")
     expected_labels.append("今日汇总")
+    # 天气两项（2026-09-29 新增）：查看天气 + 天气城市子菜单
+    expected_labels.append("查看天气")
+    expected_labels.append("天气城市")
     # 立即报时/语音报时开关/今日节日/节日提醒开关：2026-09-19 起默认模板
     # visible: false，不上默认菜单（用户可在菜单编辑器加回）
     expected_labels.extend([
