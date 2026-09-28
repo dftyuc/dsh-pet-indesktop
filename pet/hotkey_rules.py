@@ -68,8 +68,11 @@ def normalize_seq(text) -> str:
             out.append("Shift")
         elif token in ("win", "meta"):
             out.append("Win")
+        elif token.startswith("f") and token[1:].isdigit():
+            out.append(part.upper())          # F1~F24 统一大写
         else:
-            out.append(part.upper() if len(part) == 1 else part.capitalize())
+            # 其余保持用户写的形状：单字母大写（a → A），特殊键原样（space / PageUp）
+            out.append(part.upper() if len(part) == 1 else part)
     return "+".join(out)
 
 

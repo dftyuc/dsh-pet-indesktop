@@ -50,7 +50,10 @@ def test_hotkey_parse_is_conservative(seq, ok):
 def test_hotkey_parse_reads_function_keys_and_letters():
     assert hr.hotkey_parse("Ctrl+Alt+F1") == (0x0003, 0x70)
     assert hr.hotkey_parse("Ctrl+Alt+F24") == (0x0003, 0x70 + 23)
-    assert hr.hotkey_parse("Ctrl+A") == (0x0002, ord("A"))
+    # 用 Ctrl+G 而不是 Ctrl+A：Ctrl+A/C/V/X/Z/S/F/W/T/N/R 都在保留名单里
+    # （抢了就等于替用户按了全选/复制/查找……）
+    assert hr.hotkey_parse("Ctrl+G") == (0x0002, ord("G"))
+    assert hr.hotkey_parse("Ctrl+A") is None
 
 
 def test_supported_hint_mentions_ctrl_rule():

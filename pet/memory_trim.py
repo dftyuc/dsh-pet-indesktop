@@ -39,6 +39,8 @@ def human_mb(value) -> str:
         size = float(value)
     except (TypeError, ValueError):
         return "0 MB"
+    if size <= 0:
+        return "0 MB"
     if size >= 1024 ** 3:
         return f"{size / 1024 ** 3:.1f} GB"
     if size >= 1024 ** 2:

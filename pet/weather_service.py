@@ -143,7 +143,8 @@ def search_and_add(host, query: str) -> bool:
 def ensure_started(host) -> None:
     timer = getattr(host, _TIMER_ATTR, None)
     if timer is None:
-        timer = QTimer(host)
+        # 无主 QTimer：宿主可能是测试替身（见 quiet_service 同款说明）
+        timer = QTimer()
         timer.setInterval(TICK_INTERVAL_MS)
         timer.timeout.connect(lambda: tick(host))
         setattr(host, _TIMER_ATTR, timer)

@@ -162,3 +162,58 @@ $env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force
 - **配置迁移**：8 个键均为纯新增键，`version` 不需升；老 `config.json` 直接读默认值。
 - **回滚**：`git revert` 本提交即可；无落盘数据（快捷键注册在进程退出时由系统回收，
   但**关闭开关会显式注销**）。
+
+---
+
+# 第二轮（同日稍后）：用户报告 9 个失败 + 测试闪烁 —— 归因与修复
+
+用户在真机跑全量得到 `9 failed, 3071 passed, 9 skipped`，并反馈"测试时会切屏闪烁"。
+逐条查完：**6 个是本批引入的缺陷，3 个是测试环境差异**；闪烁与 CI 平台设置不一致有关。
+
+## 一、六个缺陷（本批引入，全部已修）
+
+| # | 失败用例 | 根因 | 修法 |
+|---|---|---|---|
+| 1 | `test_memory_trim.py::test_human_mb_formats` | `human_mb(0)` 落到 KB 分支给出 "0 KB" | 0/负数显式返回 "0 MB"（`pet/memory_trim.py`） |
+| 2–4 | `test_app_usage.py` 三条 | `UsageTracker.feed` 里 `self._clock or now` —— **时钟为合法的 0.0 时被当成假值**，于是首拍之后所有 gap 都算 0，永远到不了阈值 | 改成显式 None 判断（`base = self._clock if self._clock is not None else now`） |
+| 5 | `test_hotkey_rules.py::test_normalize_seq_makes_display_form` | `normalize_seq` 把多字符 token 一律首字母大写（`space` → `Space`），与测试期望的"保留原样"不符 | 只把 F1~F24 与单字母规范化，其余保持用户写法 |
+| 6 | `test_hotkey_rules.py::test_hotkey_parse_reads_function_keys_and_letters` | 测试想验 `Ctrl+A`，但 `Ctrl+A` 在**保留名单**里（抢了等于替用户按全选） | 保留名单不动（实现是对的），把用例改成 `Ctrl+G` 并显式断言 `Ctrl+A is None` |
+| 7–8 | `test_pet_app_binds_about_to_quit_once_to_current_window`、`test_settings_process_isolation.py::test_apply_external_config_change_fans_out_to_all_instances`、`test_voice_chime_service.py::test_about_to_quit_stops_voice_chime_service` | 两处"测试替身兼容"问题：① 五个新服务用 `QTimer(host)`，而宿主在测试里是普通对象/Mock（**不是 QObject**）→ `TypeError`；② `hotkey_service.unregister_all/on_hotkey` 直接 `list(getattr(host, ...))`，Mock 属性不可迭代 → `TypeError` | ① 全部改成**无主 QTimer()**（与本仓库既有服务同口径，引用挂在 host 属性上）；② 属性取值加 `isinstance` 守卫（非列表/非 dict 一律当"没注册过"） |
+
+## 二、测试闪烁：与 CI 的平台设置不一致
+
+**根因**：CI（`.github/workflows/pr-test.yml`）显式设了 `QT_QPA_PLATFORM: offscreen`，
+而本机直接 `pytest` 用的是**真实 Windows 平台** —— 用例会真的创建透明置顶的桌宠窗口，
+于是跑测试时桌面上"切屏闪烁"。
+
+**修法**：`tests/conftest.py` 顶部（导入 Qt 之前）加 `os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")`，
+**与 CI 完全一致**；想用真实平台观察窗口行为时，先设 `$env:QT_QPA_PLATFORM = "windows"` 即可覆盖
+（用的是 `setdefault`，环境变量优先）。
+
+顺带收益：本机跑测试不再往桌面上弹真窗口，也能让几何类断言与 CI 行为一致。
+
+## 三、本轮验证（仍未跑 pytest）
+
+```text
+ruff check pet/ tests/                     → All checks passed!
+py_compile（11 个改动文件）                 → exit 0
+work/probe_batch_fixes.py（13 项最小断言）  → 全部通过
+```
+
+探针覆盖的正是这六处修复：`human_mb(0)`、tracker 首拍/到点/重复、`normalize_seq`
+特殊键与 F 键、`Ctrl+G` 可用 / `Ctrl+A` 保留、`hotkey_service` 面对 Mock 属性不炸、
+`timed_reminder_service` 对非 QObject 宿主也能起表。
+
+> 探针第一版自身还踩了一下：没建 `QApplication` 就 `QTimer.start()`，`is_running` 恒 False
+> ——QTimer 需要事件循环所属的 QApplication，这与产品无关，已在探针里补上。
+
+## 四、请用户复跑
+
+```powershell
+cd <仓库路径>
+$env:TMP="$PWD\.tmp"; $env:TEMP="$PWD\.tmp"; New-Item -ItemType Directory -Force $env:TMP | Out-Null
+.\.venv\Scripts\python -m pytest -q
+```
+
+预期：上一轮那 6 个失败转绿；并且**跑测试时桌面不再闪烁**（窗口都在 offscreen 里）。
+若仍有与"真实平台"相关的用例想验，用 `$env:QT_QPA_PLATFORM = "windows"` 单独跑那一个文件。

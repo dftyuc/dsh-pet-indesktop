@@ -118,7 +118,10 @@ class UsageTracker:
             self._clock = now
             self._fired = 0
             return None
-        gap = max(0.0, float(now) - float(self._clock or now))
+        # 注意：clock 可能是合法的 0.0，不能用 `or now` 兜底（那样首拍之后
+        # 所有 gap 都会算成 0，永远到不了阈值——初版就是这个 bug）。
+        base = self._clock if self._clock is not None else now
+        gap = max(0.0, float(now) - float(base))
         self._clock = now
         if idle_seconds is not None:
             try:

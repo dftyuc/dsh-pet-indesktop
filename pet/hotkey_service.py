@@ -94,7 +94,10 @@ def _user32():
 
 
 def unregister_all(host) -> None:
-    ids = list(getattr(host, _IDS_ATTR, []) or [])
+    ids = getattr(host, _IDS_ATTR, None)
+    if not isinstance(ids, (list, tuple)):
+        ids = []          # 宿主可能是测试替身：任何非列表值都按"没注册过"处理
+    ids = list(ids)
     setattr(host, _IDS_ATTR, [])
     setattr(host, _SLOTS_ATTR, {})
     if not ids or sys.platform != "win32":
@@ -195,7 +198,10 @@ def toggle(host) -> bool:
 
 def on_hotkey(host, hotkey_id: int) -> None:
     """原生消息里收到 WM_HOTKEY：按这条规则的动作来一下。"""
-    rule = (getattr(host, _SLOTS_ATTR, None) or {}).get(hotkey_id)
+    slots = getattr(host, _SLOTS_ATTR, None)
+    if not isinstance(slots, dict):
+        slots = {}
+    rule = slots.get(hotkey_id)
     if not rule:
         return
     act = str(rule.get("act") or "lines")
