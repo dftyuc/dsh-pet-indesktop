@@ -155,3 +155,30 @@
   不写入任何错误状态。
 - **配置迁移**：3 个键均为纯新增键，`version` 不需升。
 - **回滚**：`git revert` 本提交即可；已写入 `config.json` 的 3 个键按既有未知键保留策略留着。
+
+---
+
+## 九、补记（同日）：补全检出后的全量对照
+
+第九节之前的数字来自**稀疏检出**（缺 `assets/` 与大部分 `docs/`）。本轮把素材补齐
+（`assets/` 149 个文件，其中 148 个直接取自本机已安装的桌宠产物 `_internal/assets/`，
+差的一个 `assets/icon.ico` 与全部 `docs/`、`.github/`、`.agents/` 经镜像取回），重跑：
+
+```text
+基线（2786c15，同样补全）：14 failed, 2948 passed, 10 skipped   (4:09)
+本分支（含免打扰 + 天气）：14 failed, 3010 passed, 10 skipped   (4:01)
+逐条比对：失败集合完全相同（无新增失败、无被修好的既有失败）
+```
+
+**剩下这 14 个的性质（逐条看过，都不是本改动的）**：
+
+| 组 | 数量 | 失败原因 |
+|---|---|---|
+| `tests/test_click_sound.py` | 4 | `PermissionError [WinError 5]` 写 `C:\Users\15249\AppData\Roaming\sounds_cache`——**本机沙箱**不允许写工作区之外的目录 |
+| `tests/test_drag_move_coalescing.py` | 6 | 拖拽位移断言依赖**真实桌面几何**（期望 (1874,1088)，本机虚拟桌面给 (1611,941)） |
+| `tests/test_desktop_pet_features.py::test_image_directory_picker_…` | 1 | 同上，三列瀑布流布局按屏幕宽度算 |
+| `tests/test_pet_interaction_locks.py::test_shift_drag_requires_shift` | 1 | 依赖修饰键/桌面状态 |
+| `tests/test_proactive.py::…test_foreground_window_info_real_call_no_shadow_bug` | 1 | 需要一个**真实前台窗口**，本机无交互桌面 |
+| `tests/test_harness_launcher.py::test_find_launch_command_fallback_without_dsh` | 1 | 本机 PATH 上没有 `dsh`/node 环境 |
+
+即：把素材补齐后，这两批功能在**完整检出**上的净效果是 **+62 个通过用例、0 个新增失败**。
