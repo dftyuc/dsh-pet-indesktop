@@ -151,6 +151,7 @@
 | [`PR-REPORT-ISSUE-186-TRAY-MENU-2026-09-23.md`](PR-REPORT-ISSUE-186-TRAY-MENU-2026-09-23.md) | 发布后补丁报告（三个独立提交）：① issue #186 多显示器跨屏拖拽/抛掷恢复——#137 把落位统一钳进本屏，改成「一次交互一个多屏活动区域快照」（`DesktopArea` + `band_bounds` 防错位空洞）；② 托盘图标消失——首帧不再同步解码后 `icon_pixmap()` 为空，占位图标 + `frame_ready` 换角色头像；③ 右键菜单「鼠标穿透」去重（设置页 + 托盘保留）。 | 改窗口落位/钳制/抛掷边界（`pet/window_placement.py`、`_interaction_area` 快照生命周期）时；改托盘图标/`_build_tray` 时；或再遇「托盘图标不见了」「桌宠拖不到副屏」这类反馈时（含单屏不可复现的探针口径）。 |
 | [`PR-REPORT-QIET-MODE-DAILY-SUMMARY-2026-09-29.md`](PR-REPORT-QIET-MODE-DAILY-SUMMARY-2026-09-29.md) | 免打扰 + 今日汇总：菜单四档时长、普通提醒进暂存（上限 20）与结束汇报、审批/提问/错误一律穿透、全屏复用既有 `fullscreen_changed`；含纯逻辑实测数字与"配置链需 PySide6 才能复跑"的探针记录。 | 改气泡抑制闸门（`set_bubble_suppressed` / `show_alert`）、提醒排队与结算口径，或要给"提醒类"加第四种触发源时；也需要"三个抑制源互不覆盖"这条设计依据时。 |
 | [`PR-REPORT-WEATHER-2026-09-29.md`](PR-REPORT-WEATHER-2026-09-29.md) | 天气：中国天气网直连优先 + open-meteo 兜底、地名容错（"鹿城区"→"鹿城"）、多城市列表（当前城市排第一、上限 12）、后台取数 + 队列 + tick 冒泡、走入提醒队列因此天然兼容免打扰；含纯逻辑微基准与"沙箱禁网、接口未本机复测"的如实记录。 | 改 `pet/weather_source.py` 的解析/编排、`pet/weather_service.py` 的线程与队列、天气的菜单与设置入口时；也给"新增一个联网信息类功能该怎么做（纯逻辑 + 注入 HTTP 出口）"作范例时。 |
+| [`PR-REPORT-TEST-INFRA-TRUE-DESKTOP-2026-09-29.md`](PR-REPORT-TEST-INFRA-TRUE-DESKTOP-2026-09-29.md) | 真实桌面上 9 个测试失败的归因与修复（产品 0 改动）：假屏 1920×1200 装不下 309×259 的身体框导致贴边钳位（6+1 条）、#186 多屏快照绕过假屏、长文件名触发 Windows MAX_PATH、reader 线程抢跑。 | 再遇 `test_drag_move_coalescing` / `test_pet_interaction_locks` / 图片抽屉 / 会话门对照组在"自己机器上红、CI 绿"时；也给"测试假屏尺寸是隐式契约""异步断言要有界等待"作范例时。 |
 
 ---
 
