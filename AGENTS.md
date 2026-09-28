@@ -131,6 +131,25 @@ Run focused tests before `python -m pytest -q`. Set
 sandbox may deny Unix socket creation; rerun QLocalServer tests with local IPC
 permission rather than treating errno 1 as a product failure.
 
+## 协作经验（2026-09-29 复盘，硬规矩）
+
+一次通宵改造（免打扰 + 今日汇总 + 天气 + 修测试）踩了 20 个坑，完整复盘见
+[`docs/AI-LESSONS-2026-09-29.md`](docs/AI-LESSONS-2026-09-29.md)。最容易让用户
+白跑、白等的是这五条：
+
+1. **交付"可以让用户去跑"的东西之前，自己先跑通一次最小验证**；跑不通就先说还差什么
+   （本次踩坑：稀疏检出没补 `assets/` 与 `docs/`，用户连跑三次测试全是 `FileNotFoundError`）。
+2. **动有契约测试的框架，先照抄现成同类实现**。菜单里「免打扰」第一版写成**空 submenu**，
+   被 `resolve_menu_layout()` 过滤 → 菜单里根本不会出现；同类实现是「播放动画」
+   （模板放 action、子菜单由注册表动态生成）。
+3. **改一处、扫一片**：动菜单模板 / 配置键 / 设置行 / 公开文案时，同批更新对应断言
+   （`tests/test_menu_layout.py`、`tests/test_config_schema.py`、
+   `tests/test_settings_interaction_tabs.py`、文案红线用例）与 `docs/INDEX.md` 登记。
+4. **归因逐条看 traceback，不按"同类"打包推断**；报告里每个根因都要有原始输出支撑
+   （本次踩坑：把 `MAX_PATH` 的 `FileNotFoundError` 误报成"桌面几何问题"）。
+5. **长测试先问再跑**：全量一次约 4 分钟，反复跑是烧用户时间。默认只跑聚焦集 + 相邻文件；
+   全量交给用户，或先问一句。
+
 ## Agent skills
 
 ### Issue tracker
