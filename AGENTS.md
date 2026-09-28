@@ -149,6 +149,10 @@ permission rather than treating errno 1 as a product failure.
    （本次踩坑：把 `MAX_PATH` 的 `FileNotFoundError` 误报成"桌面几何问题"）。
 5. **长测试先问再跑**：全量一次约 4 分钟，反复跑是烧用户时间。默认只跑聚焦集 + 相邻文件；
    全量交给用户，或先问一句。
+6. **测试执行权归用户（2026-09-29 起，硬约定）**：agent **不自己跑 pytest**（含聚焦集）——
+   只写代码、写用例、跑静态检查（`ruff`、`py_compile`），然后把"建议的验证命令"写进交接说明；
+   由用户在终端跑全量并把报告发回来，agent 按报告改。理由：用户的时间预算 + 用户机器才是
+   真实环境（沙箱禁网、禁写 `%APPDATA%`，本机跑不出真结论）。
 
 ## Agent skills
 
